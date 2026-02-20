@@ -1,29 +1,27 @@
-using Supabase.Postgrest.Attributes;
-using Supabase.Postgrest.Models;
+using System.Text.Json.Serialization;
 
 namespace Up4It.Models;
 
-[Table("event_invites")]
-public class EventInvite : BaseModel
+public class EventInvite
 {
-    [PrimaryKey("id")]
+    [JsonPropertyName("id")]
     public string Id { get; set; } = Guid.NewGuid().ToString();
 
-    [Column("event_id")]
+    [JsonPropertyName("event_id")]
     public string EventId { get; set; } = string.Empty;
 
-    [Column("user_id")]
+    [JsonPropertyName("user_id")]
     public string UserId { get; set; } = string.Empty;
 
-    [Column("status")]
+    [JsonPropertyName("status")]
     public string Status { get; set; } = "pending"; // pending, accepted, declined, ignored
 
-    [Column("invited_at")]
+    [JsonPropertyName("invited_at")]
     public DateTime InvitedAt { get; set; }
 
-    [Column("responded_at")]
+    [JsonPropertyName("responded_at")]
     public DateTime? RespondedAt { get; set; }
 
-    [Column("notified_at")]
+    [JsonPropertyName("notified_at")]
     public DateTime? NotifiedAt { get; set; }
 }

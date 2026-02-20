@@ -1,38 +1,36 @@
-using Supabase.Postgrest.Attributes;
-using Supabase.Postgrest.Models;
+using System.Text.Json.Serialization;
 
 namespace Up4It.Models;
 
-[Table("profiles")]
-public class Profile : BaseModel
+public class Profile
 {
-    [PrimaryKey("id")]
+    [JsonPropertyName("id")]
     public string Id { get; set; } = string.Empty;
 
-    [Column("phone_number")]
+    [JsonPropertyName("phone_number")]
     public string PhoneNumber { get; set; } = string.Empty;
 
-    [Column("display_name")]
+    [JsonPropertyName("display_name")]
     public string DisplayName { get; set; } = string.Empty;
 
-    [Column("email")]
+    [JsonPropertyName("email")]
     public string? Email { get; set; }
 
-    [Column("profile_image_url")]
+    [JsonPropertyName("profile_image_url")]
     public string? ProfileImageUrl { get; set; }
 
-    [Column("timezone")]
+    [JsonPropertyName("timezone")]
     public string Timezone { get; set; } = "America/Chicago";
 
-    [Column("notification_preferences")]
+    [JsonPropertyName("notification_preferences")]
     public string NotificationPreferences { get; set; } = "{\"push\": true, \"sms\": false}";
 
-    [Column("reliability_score")]
+    [JsonPropertyName("reliability_score")]
     public int ReliabilityScore { get; set; } = 100;
 
-    [Column("created_at")]
+    [JsonPropertyName("created_at")]
     public DateTime CreatedAt { get; set; }
 
-    [Column("last_active_at")]
+    [JsonPropertyName("last_active_at")]
     public DateTime LastActiveAt { get; set; }
 }

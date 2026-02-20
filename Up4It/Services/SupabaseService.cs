@@ -1,127 +1,73 @@
-using Supabase;
-using Supabase.Postgrest;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using System.Text.Json;
 using Up4It.Models;
 
 namespace Up4It.Services;
 
 public class SupabaseService
 {
-    private readonly Client _client;
+    private readonly HttpClient _httpClient;
+    private readonly string _supabaseUrl;
+    private readonly string _supabaseKey;
     private bool _initialized = false;
 
     public SupabaseService()
     {
-        var url = Environment.GetEnvironmentVariable("SUPABASE_URL") ?? 
-                  throw new Exception("SUPABASE_URL not configured");
-        var key = Environment.GetEnvironmentVariable("SUPABASE_KEY") ?? 
-                  throw new Exception("SUPABASE_KEY not configured");
+        _supabaseUrl = Environment.GetEnvironmentVariable("SUPABASE_URL") ?? 
+                       throw new Exception("SUPABASE_URL not configured");
+        _supabaseKey = Environment.GetEnvironmentVariable("SUPABASE_KEY") ?? 
+                       throw new Exception("SUPABASE_KEY not configured");
 
-        var options = new SupabaseOptions
-        {
-            AutoRefreshToken = true,
-            AutoConnectRealtime = true
-        };
-
-        _client = new Client(url, key, options);
+        _httpClient = new HttpClient();
+        _httpClient.BaseAddress = new Uri($"{_supabaseUrl}/rest/v1/");
+        _httpClient.DefaultRequestHeaders.Add("apikey", _supabaseKey);
+        _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_supabaseKey}");
+        _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
     }
 
-    public async Task InitializeAsync()
+    public Task InitializeAsync()
     {
-        if (_initialized) return;
-        
-        await _client.InitializeAsync();
         _initialized = true;
-    }
-
-    public Client Client => _client;
-
-    // User/Profile methods
-    public async Task<Profile?> GetCurrentProfile()
-    {
-        var user = _client.Auth.CurrentUser;
-        if (user == null) return null;
-
-        var response = await _client
-            .From<Profile>()
-            .Where(p => p.Id == user.Id)
-            .Single();
-
-        return response;
+        return Task.CompletedTask;
     }
 
     // Event methods
     public async Task<Event> CreateEvent(Event newEvent)
     {
-        var user = _client.Auth.CurrentUser;
-        if (user == null) throw new Exception("User not authenticated");
-
-        newEvent.CreatorId = user.Id;
         newEvent.CreatedAt = DateTime.UtcNow;
         newEvent.UpdatedAt = DateTime.UtcNow;
 
-        var response = await _client
-            .From<Event>()
-            .Insert(newEvent);
+        var response = await _httpClient.PostAsJsonAsync("events", newEvent);
+        response.EnsureSuccessStatusCode();
 
-        return response.Models.First();
+        var result = await response.Content.ReadFromJsonAsync<List<Event>>();
+        return result?.FirstOrDefault() ?? throw new Exception("Failed to create event");
     }
 
     public async Task<List<Event>> GetTodaysEvents()
     {
-        var today = DateTime.Today;
-        var tomorrow = today.AddDays(1);
+        var today = DateTime.Today.ToString("yyyy-MM-dd");
+        var tomorrow = DateTime.Today.AddDays(1).ToString("yyyy-MM-dd");
 
-        var response = await _client
-            .From<Event>()
-            .Where(e => e.StartTime >= today && e.StartTime < tomorrow)
-            .Where(e => e.Status == "open")
-            .Order(x => x.StartTime, Constants.Ordering.Ascending)
-            .Get();
+        var response = await _httpClient.GetAsync(
+            $"events?start_time=gte.{today}T00:00:00Z&start_time=lt.{tomorrow}T00:00:00Z&status=eq.open&order=start_time.asc");
+        
+        response.EnsureSuccessStatusCode();
 
-        return response.Models;
+        var events = await response.Content.ReadFromJsonAsync<List<Event>>();
+        return events ?? new List<Event>();
     }
 
     public async Task<List<Event>> GetMyEvents()
     {
-        var user = _client.Auth.CurrentUser;
-        if (user == null) return new List<Event>();
+        // For now, return all events
+        // TODO: Add auth and filter by user
+        var response = await _httpClient.GetAsync("events?status=eq.open&order=start_time.asc");
+        response.EnsureSuccessStatusCode();
 
-        // Get events created by me
-        var myCreated = await _client
-            .From<Event>()
-            .Where(e => e.CreatorId == user.Id)
-            .Where(e => e.Status == "open")
-            .Order(x => x.StartTime, Constants.Ordering.Ascending)
-            .Get();
-
-        // Get events I've accepted
-        var myInvites = await _client
-            .From<EventInvite>()
-            .Where(i => i.UserId == user.Id)
-            .Where(i => i.Status == "accepted")
-            .Get();
-
-        var invitedEventIds = myInvites.Models.Select(i => i.EventId).ToList();
-        
-        if (invitedEventIds.Any())
-        {
-            var invitedEvents = await _client
-                .From<Event>()
-                .Filter("id", Constants.Operator.In, invitedEventIds)
-                .Where(e => e.Status == "open")
-                .Get();
-
-            // Combine and dedupe
-            var allEvents = myCreated.Models
-                .Concat(invitedEvents.Models)
-                .DistinctBy(e => e.Id)
-                .OrderBy(e => e.StartTime)
-                .ToList();
-
-            return allEvents;
-        }
-
-        return myCreated.Models;
+        var events = await response.Content.ReadFromJsonAsync<List<Event>>();
+        return events ?? new List<Event>();
     }
 
     // Invite methods
@@ -135,40 +81,34 @@ public class SupabaseService
             InvitedAt = DateTime.UtcNow
         };
 
-        var response = await _client
-            .From<EventInvite>()
-            .Insert(invite);
+        var response = await _httpClient.PostAsJsonAsync("event_invites", invite);
+        response.EnsureSuccessStatusCode();
 
-        return response.Models.First();
+        var result = await response.Content.ReadFromJsonAsync<List<EventInvite>>();
+        return result?.FirstOrDefault() ?? throw new Exception("Failed to create invite");
     }
 
     public async Task<EventInvite> UpdateInviteStatus(string inviteId, string status)
     {
-        var invite = await _client
-            .From<EventInvite>()
-            .Where(i => i.Id == inviteId)
-            .Single();
+        var update = new { status, responded_at = DateTime.UtcNow };
 
-        if (invite == null) throw new Exception("Invite not found");
+        var response = await _httpClient.PatchAsync(
+            $"event_invites?id=eq.{inviteId}",
+            JsonContent.Create(update));
+        
+        response.EnsureSuccessStatusCode();
 
-        invite.Status = status;
-        invite.RespondedAt = DateTime.UtcNow;
-
-        var updated = await _client
-            .From<EventInvite>()
-            .Update(invite);
-
-        return updated.Models.First();
+        var result = await response.Content.ReadFromJsonAsync<List<EventInvite>>();
+        return result?.FirstOrDefault() ?? throw new Exception("Failed to update invite");
     }
 
     public async Task<List<EventInvite>> GetEventInvites(string eventId)
     {
-        var response = await _client
-            .From<EventInvite>()
-            .Where(i => i.EventId == eventId)
-            .Get();
+        var response = await _httpClient.GetAsync($"event_invites?event_id=eq.{eventId}");
+        response.EnsureSuccessStatusCode();
 
-        return response.Models;
+        var invites = await response.Content.ReadFromJsonAsync<List<EventInvite>>();
+        return invites ?? new List<EventInvite>();
     }
 
     public async Task<int> GetAttendeeCount(string eventId)
@@ -177,38 +117,32 @@ public class SupabaseService
         return invites.Count(i => i.Status == "accepted");
     }
 
-    // Authentication methods
-    public async Task<bool> SignInWithPhone(string phone)
+    // Profile methods
+    public async Task<Profile?> GetCurrentProfile()
     {
-        try
-        {
-            await _client.Auth.SignIn(Supabase.Gotrue.Constants.Provider.Phone, 
-                new Supabase.Gotrue.SignInOptions { Phone = phone });
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
+        // TODO: Implement auth
+        // For now, return null
+        return null;
     }
 
-    public async Task<bool> VerifyOtp(string phone, string token)
+    // Auth methods (placeholder for now)
+    public bool IsAuthenticated => false;
+
+    public Task<bool> SignInWithPhone(string phone)
     {
-        try
-        {
-            await _client.Auth.VerifyOTP(phone, token, Supabase.Gotrue.Constants.EmailOtpType.SMS);
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
+        // TODO: Implement Supabase Auth
+        return Task.FromResult(false);
     }
 
-    public bool IsAuthenticated => _client.Auth.CurrentUser != null;
-
-    public async Task SignOut()
+    public Task<bool> VerifyOtp(string phone, string token)
     {
-        await _client.Auth.SignOut();
+        // TODO: Implement Supabase Auth
+        return Task.FromResult(false);
+    }
+
+    public Task SignOut()
+    {
+        // TODO: Implement Supabase Auth
+        return Task.CompletedTask;
     }
 }
