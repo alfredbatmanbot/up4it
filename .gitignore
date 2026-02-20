@@ -24,3 +24,4 @@ appsettings.Development.json
 *.ipa
 *.apk
 *.aab
+.env
