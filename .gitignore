@@ -1,0 +1,89 @@
+# .NET MAUI / Xamarin
+
+## Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+## Visual Studio cache/options
+.vs/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+## Rider
+.idea/
+
+## User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+## Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+build/
+bld/
+[Bb]in/
+[Oo]bj/
+msbuild.log
+msbuild.err
+msbuild.wrn
+
+## NuGet
+*.nupkg
+**/packages/*
+!**/packages/build/
+*.nuget.props
+*.nuget.targets
+
+## macOS
+.DS_Store
+*.DStore
+
+## MAUI specific
+**/[Pp]latforms/**/[Bb]in/
+**/[Pp]latforms/**/[Oo]bj/
+
+## Android
+*.apk
+*.ap_
+*.aab
+*.dex
+*.class
+
+## iOS
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+## Sensitive data
+.env
+*.secrets
+**/appsettings.Development.json
+
+## User settings
+*.suo
+*.user
+.vs/
+
+## Test results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*

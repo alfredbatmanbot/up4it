@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:Up4It.ViewModels"
+             xmlns:models="clr-namespace:Up4It.Models"
+             x:Class="Up4It.Pages.EventFeedPage"
+             x:DataType="vm:EventFeedViewModel"
+             Title="Up4It">
+    
+    <Grid RowDefinitions="Auto,*,Auto">
+        
+        <!-- Toggle View Buttons -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,*" Padding="10">
+            <Button Text="What's Happening"
+                    Grid.Column="0"
+                    Command="{Binding ToggleViewCommand}"
+                    BackgroundColor="{Binding ShowTodaysEvents, Converter={StaticResource BoolToColorConverter}}"
+                    Margin="5,0"/>
+            <Button Text="My Events"
+                    Grid.Column="1"
+                    Command="{Binding ToggleViewCommand}"
+                    BackgroundColor="{Binding ShowTodaysEvents, Converter={StaticResource InvertedBoolToColorConverter}}"
+                    Margin="5,0"/>
+        </Grid>
+
+        <!-- Event List -->
+        <RefreshView Grid.Row="1"
+                     IsRefreshing="{Binding IsLoading}"
+                     Command="{Binding RefreshEventsCommand}">
+            <CollectionView ItemsSource="{Binding ShowTodaysEvents, Converter={StaticResource BoolToEventsConverter}, ConverterParameter={x:Reference Root}}">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="models:Event">
+                        <Frame Padding="15" Margin="10,5" CornerRadius="10" HasShadow="True">
+                            <VerticalStackLayout Spacing="5">
+                                <Label Text="{Binding Title}" 
+                                       FontAttributes="Bold" 
+                                       FontSize="18"/>
+                                <Label Text="{Binding StartTime, StringFormat='{0:h:mm tt}'}"
+                                       FontSize="14"
+                                       TextColor="Gray"/>
+                                <Label Text="{Binding Location}"
+                                       FontSize="14"
+                                       IsVisible="{Binding Location, Converter={StaticResource StringToBoolConverter}}"/>
+                                <Label Text="{Binding Description}"
+                                       FontSize="12"
+                                       IsVisible="{Binding Description, Converter={StaticResource StringToBoolConverter}}"
+                                       MaxLines="2"
+                                       LineBreakMode="TailTruncation"/>
+                                <Label Text="{Binding AttendeeCount, StringFormat='{0} attending'}"
+                                       FontSize="12"
+                                       TextColor="Green"/>
+                            </VerticalStackLayout>
+                        </Frame>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+                <CollectionView.EmptyView>
+                    <VerticalStackLayout Padding="50" Spacing="20" VerticalOptions="Center">
+                        <Label Text="No events yet!"
+                               HorizontalTextAlignment="Center"
+                               FontSize="20"
+                               TextColor="Gray"/>
+                        <Label Text="{Binding ShowTodaysEvents, Converter={StaticResource BoolToEmptyMessageConverter}}"
+                               HorizontalTextAlignment="Center"
+                               TextColor="Gray"/>
+                    </VerticalStackLayout>
+                </CollectionView.EmptyView>
+            </CollectionView>
+        </RefreshView>
+
+        <!-- Create Event FAB -->
+        <Button Grid.Row="2"
+                Text="+ Create Event"
+                Command="{Binding CreateEventCommand}"
+                Margin="20"
+                BackgroundColor="{StaticResource Primary}"
+                HeightRequest="60"
+                CornerRadius="30"
+                FontSize="18"
+                FontAttributes="Bold"/>
+    </Grid>
+</ContentPage>
